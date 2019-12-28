@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Providers\RouteServiceProvider;
 use App\User;
 use Illuminate\Foundation\Auth\RegistersUsers;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Intervention\Image\Facades\Image;
+use Illuminate\Support\Facades\File;
 
 class RegisterController extends Controller
 {
@@ -52,7 +55,9 @@ class RegisterController extends Controller
         return Validator::make($data, [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:8'],
+            'phone_number' => ['required', 'min:11', 'max:14'],
+            'zip_code' => ['size:5'],
         ]);
     }
 
@@ -62,12 +67,35 @@ class RegisterController extends Controller
      * @param  array  $data
      * @return \App\User
      */
-    protected function create(array $data)
+    protected function store(Request $request)
     {
-        return User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-        ]);
+        $data = $request->all();
+        $vaildator = self::validator($data);
+        if($vaildator->fails()) {
+            dd($vaildator->errors());
+            return response([
+                'msg' => 'Invalid data'
+            ], 400);
+        } else {
+            if($data['photo']) {
+                $photo = $data['photo'];
+                $name = time().'.' . explode('/', explode(':', substr($photo, 0, strpos($photo, ';')))[1])[1];
+                Image::make($photo)->save(public_path('images/').$name);
+                $data['photo'] = $name;
+            }
+            if($data['file']) {
+                $file = $data['file'];
+                $file = str_replace('data:text/plain;base64,', '', $file);
+                $file = str_replace(' ', '+', $file);
+                $fileName = time().'.' . explode('/', explode(':', substr($file, 0, strpos($file, ';')))[0])[0] . '.txt';
+                File::put(public_path('files'). '/' . $fileName, base64_decode($file));
+                $data['file'] = $fileName;
+            }
+            User::create($data);
+            return response([
+                'msg' => 'User has been created successfully'
+            ], 200);
+        }
+
     }
 }
