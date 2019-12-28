@@ -72,7 +72,6 @@ class RegisterController extends Controller
         $data = $request->all();
         $vaildator = self::validator($data);
         if($vaildator->fails()) {
-            dd($vaildator->errors());
             return response([
                 'msg' => 'Invalid data'
             ], 400);
